@@ -1,89 +1,239 @@
 <!DOCTYPE html>
-<!--
-The MIT License (MIT)
-
-Copyright (c) 2013 Kai-Ting (Danil) Ko
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
--->
 <meta charset="utf-8">
 <style>
-
-body {
-  font: 10px sans-serif;
+body
+{
+	font: 10px sans-serif;
+}  
+.arc path
+{
+stroke: #fff;
 }
 
-.arc path {
-  stroke: #fff;
+th, td
+{
+width: 20px;
 }
-
 </style>
 <body>
+<div id = "divGraph">
+</div>
+<div id ="divTable">
+</div>
+</body>
 <script src="http://d3js.org/d3.v3.min.js"></script>
-<script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
 <script>
-                        // Auto refresh list if sign in for every 10 seconds
-                        var intVar = setInterval(function() {
-                                draw();
-                        }, 10000);
-						draw();
-						
+// Generate some random color scale
+var lColor = d3.scale.category20();
+	
+var lWidth =950;
+var lHeight = 500;
+
+var lDataSize = 0;
+
+// Auto refresh list if sign in for every 10 seconds
+var intVar = setInterval(
+	function() 
+	{
+	//	redraw();
+	}, 10000);
+
+redraw();
+
 /**
-* Clean the screen and redraw the pie chart according to the data
-* Input: None
-* Output: None
-*/
-function draw()
+* Redraw the graph
+*
+**/			  
+function redraw()
 {
-// First clean up the screen
-d3.select("body").select("svg").remove();
+	// Load csv file
+	d3.csv("data.csv", 
+		function(pError, pCSVData)
+		{
+			lDataSize = pCSVData.length;
+			// Activate draw for the first time
+			drawGraph(pCSVData);
+			drawTable(pCSVData);
+		});  // d3.csv("data.csv", function(pError, pCSVData)
+}  // function redraw()
 
-var width = 960,
-    height = 500,
-    radius = Math.min(width, height) / 2;
+/**
+* Draw the graph based on newest csv file
+* Input: pCSVData Data object
+**/			  
+function drawGraph(pCSVData)
+{
+    // Remove old graph
+	d3.select("#divGraph").select("svg").remove();
+	
+	// Calculate radius
+	var lRaidus = Math.min(lWidth, lHeight) / 2;
 
-var color = d3.scale.ordinal()
-    .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+	// Calculate space between arcs
+	var lArc = d3.svg.arc().outerRadius(lRaidus - 10).innerRadius(0);
+	
+	var lPie = d3.layout.pie().sort(null).value(
+			function(pData) 
+			{
+				return pData.vote;
+			});
 
-var arc = d3.svg.arc()
-    .outerRadius(radius - 10)
-    .innerRadius(0);
+	var lSVG = d3.select("#divGraph").append("svg").attr("width", lWidth).attr("height", lHeight).append("g").attr("transform", "translate(" + lWidth/2 + "," + lHeight/2 + ")");
 
-var pie = d3.layout.pie()
-    .sort(null)
-    .value(function(d) { return d.population; });
 
-var svg = d3.select("body").append("svg")
-    .attr("width", width)
-    .attr("height", height)
-  .append("g")
-    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+			lCSVData = pCSVData;
+			pCSVData.forEach(
+				function(pDataRow)
+				{
+					pDataRow.population = +pDataRow.population;
+				}  // funciton(pDataSet)
+			);
+			
+			var lG = lSVG.selectAll(".arc").data(lPie(pCSVData)).enter().append("g").attr("class", "arc");
+			
+			lG.append("path").attr("d", lArc)
+				.style("fill", 
+					function(pData, pIndex)
+					{
+						return lColor(pIndex);
+					});  // .style("fill", function(pDataSet))
+	
+			lG.append("text")
+				.attr("transform",
+					function(pData)
+					{
+						return "translate(" + lArc.centroid(pData) + ")";
+					}  // function(pData)
+				)  // .attr("transform", function(pData))
+				.attr("dy", ".35em")
+				.style("text-anchor", "middle")
+				.text(
+					function(pData)
+					{ 
+						return pData.data.state;
+					});  // .text(function(pData))
+}  // function drawGraph
 
-d3.csv("data.csv", function(error, data) {
+/**
+* Draw Table based on latest csv file
+* Input: pCSVData Data object
+**/
+function drawTable(pCSVData)
+{
+	// Select table
+	var lDivTable = d3.select("#divTable");
+	
+	// Remove old table
+	lDivTable.select("table").remove();
+	
+	// Create new table
+	var lTable = lDivTable.append("table");
 
-  data.forEach(function(d) {
-    d.population = +d.population;
-  });
+	var lHeaderRow = lTable.append("tr");
+	// Append State
+	lHeaderRow.append("th");
+	// Append State
+	lHeaderRow.append("th").text("State");
+	// Append Vote
+	lHeaderRow.append("th").text("Vote");
+	
+	var lIndex = 0;
+			pCSVData.forEach(
+					function(pDataRow)
+					{
+						var lCurrentRow = lTable.append("tr").attr('id', function(pData, pIndex){return 'data_' + pIndex;});
+						// Append State
+						lCurrentRow.append("td").style("background-color", lColor(lIndex));
+						// Append State
+						lCurrentRow.append("td")
+						.append("input")
+							.attr("type", "text")
+							.attr('value', pDataRow.state)
+							.attr('id', 'data_state' + lIndex);
+						// Append Vote
+						lCurrentRow.append("td")
+						.append("input")
+							.attr("type", "text")
+							.attr('value', pDataRow.vote)
+							.attr('id','data_vote' + lIndex);
+						// Append Remove Button
+						lCurrentRow.append("td").append("div").attr("onClick","removeData(" + lIndex + ");").text("-");
+						lIndex++;
+					}  // funciton(pDataSet)
+			);
+			
+	var lAddNewRow = lTable.append("tr");
+	lAddNewRow.append("td").style("background-color", lColor(lIndex));
+	// Append State
+	lAddNewRow.append("td")
+		.append("input")
+		.attr("type", "text")
+		.attr('id','data_state' + lIndex)
+		.attr('value', '');
+		
+	// Append Vote
+	lAddNewRow.append("td")
+		.append("input")
+		.attr("type", "text")
+		.attr('id','data_vote' + lIndex)
+		.attr('value', '');
+	
+	// Append Add Button
+	lAddNewRow.append("td").append("div").attr("onClick","addData();").text("+");
+	
+}  // function drawTable()
 
-  var g = svg.selectAll(".arc")
-      .data(pie(data))
-    .enter().append("g")
-      .attr("class", "arc");
+/**
+* Add data, an backend http request will need to present to use it
+* 
+**/
+function addData()
+{
+	var lOutput = "state,vote\n";
+	
+	var lNewState = document.getElementById("data_state" + lDataSize).value;
+	var lNewVote = document.getElementById("data_vote" + lDataSize).value;
+	
+	// If invalid data, do not save it
+	if(isNaN(lNewVote) || lNewState.trim() == '')
+	{
+	
+		alert("Invalid data, please check and try again");
+		return;
+	}
+	
+	for(var lIndex = 0; lIndex <= lDataSize; lIndex++)
+	{
+			
+		lOutput = lOutput + document.getElementById("data_state" + lIndex).value + ",";
+		lOutput = lOutput + document.getElementById("data_vote" + lIndex).value + "\n";
+	}  // for
 
-  g.append("path")
-      .attr("d", arc)
-      .style("fill", function(d) { return color(d.data.age); });
+	
+	alert(lOutput);
+	alert("The current implmentation is file system, which do not allow file edit capabilities");
+}
 
-  g.append("text")
-      .attr("transform", function(d) { return "translate(" + arc.centroid(d) + ")"; })
-      .attr("dy", ".35em")
-      .style("text-anchor", "middle")
-      .text(function(d) { return d.data.age; });
+/**
+* Remove data, an backend http request will need to present to use it
+* Input: pIndex The index to be removed
+**/
+function removeData(pIndex)
+{
+	var lOutput = "state,vote\n";
 
-});
+	for(var lIndex = 0; lIndex < lDataSize; lIndex++)
+	{
+		if(lIndex != pIndex)
+		{		
+			lOutput = lOutput + document.getElementById("data_state" + lIndex).value + ",";
+			lOutput = lOutput + document.getElementById("data_vote" + lIndex).value + "\n";
+		}  // if
+	}  // for
+
+	alert(lOutput);
+	alert("The current implmentation is file system, which do not allow file edit capabilities");
 }
 </script>
+
